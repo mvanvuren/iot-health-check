@@ -1,0 +1,146 @@
+{% extends "mail-base.html.j2" %} {% block content %} 
+{% if devices_inactive | length > 0 %}
+<tr>
+  <td style="padding-top: 10px; padding-bottom: 10px">
+    The following devices were not activated within their time-out period:
+  </td>
+</tr>
+<tr>
+  <td align="left" valign="top">
+    <table>
+      <tr>
+        <th>idx</th>
+        <th>name</th>
+        <th>last update</th>
+      </tr>
+      {% for device in devices_inactive %}
+      <tr>
+        <td>{{device['idx']}}</td>
+        <td>{{device['Name']}}</td>
+        <td>{{device['LastUpdate']}}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </td>
+</tr>
+{% endif %}
+{% if zway_devices | length > 0 %}
+<tr>
+  <td style="padding-top: 10px; padding-bottom: 10px">
+    The following zway devices have failed:
+  </td>
+</tr>
+<tr>
+  <td align="left" valign="top">
+    <table>
+      <tr>
+        <th>id</th>
+        <th>name</th>
+        <th>location</th>
+      </tr>
+      {% for device in zway_devices %}
+      <tr>
+        <td>{{device['id']}}</td>
+        <td>{{device['name']}}</td>
+        <td>{{device['location']}}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </td>
+</tr>
+{% endif %}
+{% if log_errors | length > 0 %}
+<tr>
+  <td style="padding-top: 10px; padding-bottom: 10px">
+    The following errors were logged:
+  </td>
+</tr>
+<tr>
+  <td align="left" valign="top">
+    <table>
+      <tr>
+        <th>#</th>
+        <th>error</th>
+      </tr>
+      {% for error in log_errors %}
+      <tr>
+        <td>{{error['count']}}</td>
+        <td>{{error['text']}}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </td>
+</tr>
+{% endif %}
+{% if health_checks | length > 0 %}
+<tr>
+  <td style="padding-top: 10px; padding-bottom: 10px">
+    Status of health checks:
+  </td>
+</tr>
+<tr>
+  <td align="left" valign="top">
+    <table>
+      <tr>
+        <th>status</th>
+        <th>name</th>
+        <th>time</th>
+      </tr>
+      {% for check in health_checks %}
+      <tr>
+        <td>{{check['status']}}</td>
+        <td>{{check['name']}}</td>
+        <td>{{check['last_ping']}}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </td>
+</tr>
+{% endif %}
+{% if monit_services | length > 0 %}
+<tr>
+  <td style="padding-top: 10px; padding-bottom: 10px">
+    Status of Monit services:
+  </td>
+</tr>
+<tr>
+  <td align="left" valign="top">
+    <table>
+      <tr>
+        <th>status</th>
+        <th>name</th>
+      </tr>
+      {% for service in monit_services %}
+      <tr>
+        <td>{{service['status']}}</td>
+        <td>{{service['name']}}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </td>
+</tr>
+{% endif %}
+{% if devices_no_roomplan | length > 0 %}
+<tr>
+  <td style="padding-top: 10px; padding-bottom: 10px">
+    The following devices are not part of a roomplan:
+  </td>
+</tr>
+<tr>
+  <td align="left" valign="top">
+    <table>
+      <tr>
+        <th>idx</th>
+        <th>name</th>
+      </tr>
+      {% for device in devices_no_roomplan %}
+      <tr>
+        <td>{{device['idx']}}</td>
+        <td>{{device['Name']}}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </td>
+</tr>
+{% endif %}
+{% endblock %}

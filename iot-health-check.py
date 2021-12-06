@@ -20,12 +20,12 @@ config = configparser.ConfigParser(
     interpolation=configparser.BasicInterpolation())
 config.read(config_file)
 
-devices_ignored = jstyleson.loads(config['DOMOTICZ']['DEVICES_IGNORED'])
-devices_timeout_period = jstyleson.loads(
+domoticz_devices_ignored = jstyleson.loads(config['DOMOTICZ']['DEVICES_IGNORED'])
+domoticz_devices_timeout_period = jstyleson.loads(
     config['DOMOTICZ']['DEVICES_TIMEOUT_PERIOD'])
+domoticz_devices_low_battery = jstyleson.loads(config['DOMOTICZ']['DEVICES_LOW_BATTERY'])
 
-
-def get_devices():
+def get_domoticz_devices():
     response = requests.get(config['DOMOTICZ']['API_ALL_DEVICES'])
     devices = response.json()['result']
 
@@ -63,26 +63,26 @@ def get_log_errors():
         ignore_log_message = False
         key = item['message'][32:]
         for message in log_messages_ignored:
-            if (re.search(message, key)):
+            if re.search(message, key):
                 ignore_log_message = True
                 break
 
-        if (not ignore_log_message):
+        if not ignore_log_message:
             errors[key] += 1
 
     return [{'text': key, 'count': errors[key]} for key in errors.keys()]
 
 
-def get_devices_inactive(devices):
+def get_devices_inactive(domoticz_devices):
 
     now = datetime.now()
     devices_inactive = []
 
-    for device in devices:
+    for device in domoticz_devices:
 
         device_idx = device['idx']
 
-        if device_idx in devices_ignored:
+        if device_idx in domoticz_devices_ignored:
             continue
 
         last_update = datetime.strptime(
@@ -90,33 +90,54 @@ def get_devices_inactive(devices):
 
         timeout_period = config.getint('DEFAULT', 'TIMEOUT_PERIOD')
 
-        if device_idx in devices_timeout_period:
-            timeout_period = devices_timeout_period[device_idx]
+        if device_idx in domoticz_devices_timeout_period:
+            timeout_period = domoticz_devices_timeout_period[device_idx]
 
-        if ((now - last_update).days >= timeout_period):
+        if (now - last_update).days >= timeout_period:
             devices_inactive.append(device)
 
     return devices_inactive
 
 
-def get_zway_devices_failed():
-    '''returns a list of devices which have metrics.isFailed == true'''
-    devices_inactive = []
+def get_devices_low_battery(domoticz_devices):
+    
+    devices_low_battery = []
+    low_battery_level = int(config['DEFAULT']['LOW_BATTERY_LEVEL'])
 
+    for device in domoticz_devices:
+
+        device_idx = device['idx']
+
+        if not device_idx in domoticz_devices_low_battery:
+            continue
+
+        if int(device['BatteryLevel']) < low_battery_level:
+            devices_low_battery.append(device)
+
+    return devices_low_battery
+
+
+def get_zway_devices():
+    '''returns list of zway devices'''
+    
     response = requests.get(config['ZWAY']['API_ALL_DEVICES'],  headers={
                             "ZWaySession": config['ZWAY']['ZWAYSESSION']})
-    devices = response.json()['data']['devices']
-    for device in devices:
-        if 'metrics' in device and 'isFailed' in device['metrics'] and device['metrics']['isFailed'] == True:
-            devices_inactive.append(
-                {
-                    'id': device['nodeId'],
-                    'name': device['metrics']['title'],
-                    'location': device['locationName'],
-                })
+    zway_devices = response.json()['data']['devices']
 
-    return devices_inactive
+    return [d for d in zway_devices if d['technology'] == 'Z-Wave']
 
+
+def get_zway_devices_failed(zway_devices):
+    '''returns list of devices which have metrics.isFailed == true'''
+
+    return [d for d in zway_devices if d['metrics']['isFailed']]
+
+def get_zway_devices_low_battery(zway_devices):
+    '''returns list of devices which have deviceType == 'battery' and metrics.level == true'''    
+
+    low_battery_level = int(config['DEFAULT']['LOW_BATTERY_LEVEL'])
+
+    return [d for d in zway_devices if d['deviceType'] == 'battery' and d['metrics']['level'] < low_battery_level]
 
 def get_devices_no_roomplan(devices):
     return [d for d in devices if d['PlanID'] == '0']
@@ -141,22 +162,26 @@ def send_mail(report):
                     config['MAIL']['TO'], msg.as_string())
     server.quit()
 
-
-zway_devices = get_zway_devices_failed()
-
 monit_services = get_monit_services()
 
 health_checks = get_health_checks()
 
-devices = get_devices()
+domoticz_devices = get_domoticz_devices()
 
-devices_inactive = get_devices_inactive(devices)
-devices_no_roomplan = get_devices_no_roomplan(devices)
+devices_inactive = get_devices_inactive(domoticz_devices)
+devices_low_battery = get_devices_low_battery(domoticz_devices)
+devices_no_roomplan = get_devices_no_roomplan(domoticz_devices)
 log_errors = get_log_errors()
+
+zway_devices = get_zway_devices()
+zway_devices_failed = get_zway_devices_failed(zway_devices)
+zway_devices_low_battery = get_zway_devices_low_battery(zway_devices)
 
 context = {
     'devices_inactive':
         sorted(devices_inactive, key=lambda d: d['LastUpdate']),
+    'devices_low_battery':
+        devices_low_battery,        
     'devices_no_roomplan':
         sorted(devices_no_roomplan, key=lambda d: d['idx']),
     'log_errors':
@@ -165,8 +190,10 @@ context = {
         health_checks,
     'monit_services':
         monit_services,
-    'zway_devices':
-        zway_devices
+    'zway_devices_failed':
+        zway_devices_failed,
+    'zway_devices_low_battery':
+        zway_devices_low_battery      
 }
 
 file_loader = FileSystemLoader('templates')

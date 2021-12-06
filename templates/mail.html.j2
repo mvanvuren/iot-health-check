@@ -24,7 +24,32 @@
   </td>
 </tr>
 {% endif %}
-{% if zway_devices | length > 0 %}
+{% if devices_low_battery | length > 0 %}
+<tr>
+  <td style="padding-top: 10px; padding-bottom: 10px">
+    The following domoticz devices have low battery:
+  </td>
+</tr>
+<tr>
+  <td align="left" valign="top">
+    <table>
+      <tr>
+        <th>idx</th>
+        <th>name</th>
+        <th>level</th>
+      </tr>
+      {% for device in devices_low_battery %}
+      <tr>
+        <td>{{device['idx']}}</td>
+        <td>{{device['Name']}}</td>
+        <td>{{device['BatteryLevel']}}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </td>
+</tr>
+{% endif %}
+{% if zway_devices_failed | length > 0 %}
 <tr>
   <td style="padding-top: 10px; padding-bottom: 10px">
     The following zway devices have failed:
@@ -38,11 +63,34 @@
         <th>name</th>
         <th>location</th>
       </tr>
-      {% for device in zway_devices %}
+      {% for device in zway_devices_failed %}
       <tr>
         <td>{{device['id']}}</td>
         <td>{{device['name']}}</td>
         <td>{{device['location']}}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </td>
+</tr>
+{% endif %}
+{% if zway_devices_low_battery | length > 0 %}
+<tr>
+  <td style="padding-top: 10px; padding-bottom: 10px">
+    The following zway devices have low battery:
+  </td>
+</tr>
+<tr>
+  <td align="left" valign="top">
+    <table>
+      <tr>
+        <th>title</th>
+        <th>level</th>
+      </tr>
+      {% for device in zway_devices_low_battery %}
+      <tr>
+        <td>{{device['metrics']['title']}}</td>
+        <td>{{device['metrics']['level']}}%</td>
       </tr>
       {% endfor %}
     </table>

@@ -1,17 +1,19 @@
 #!/usr/bin/python3
+'''collect and report information about status home automation'''
 import os.path
 import configparser
-import lxml.etree
-import jstyleson
 from collections import defaultdict
 from datetime import datetime
-import requests
-from jinja2 import Environment, FileSystemLoader
 import smtplib
 import ssl
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import re
+#import lxml.etree
+from lxml import etree
+import jstyleson
+import requests
+from jinja2 import Environment, FileSystemLoader
 
 rootdir = os.path.dirname(os.path.realpath(__file__))
 config_file = os.path.join(rootdir, 'configuration.ini')
@@ -46,7 +48,7 @@ def get_health_checks():
 def get_monit_services():
     '''returns list of monit processes with status != OK'''
     response = requests.get(config['MONIT']['API_STATUS'])
-    doc = lxml.etree.XML(response.content)
+    doc = etree.fromstring(response.content)
 
     services = [{'status': '??', 'name': service.find('name').text}
                 for service in doc.iterfind('service/[@type="3"]')
@@ -127,7 +129,6 @@ def get_devices_low_battery(domoticz_devices):
 
 def get_zway_devices():
     '''returns list of zway devices'''
- 
     response = requests.get(config['ZWAY']['API_ALL_DEVICES'],  headers={
                             "ZWaySession": config['ZWAY']['ZWAYSESSION']})
     zway_devices = response.json()['data']['devices']
@@ -145,7 +146,8 @@ def get_zway_devices_low_battery(zway_devices):
 
     low_battery_level = int(config['DEFAULT']['LOW_BATTERY_LEVEL'])
 
-    return [d for d in zway_devices if d['deviceType'] == 'battery' and d['metrics']['level'] < low_battery_level]
+    return [d for d in zway_devices
+            if d['deviceType'] == 'battery' and d['metrics']['level'] < low_battery_level]
 
 def get_devices_no_roomplan(devices):
     '''returns list of devices which are not part of a roomplan'''
@@ -171,48 +173,70 @@ def send_mail(report):
                     config['MAIL']['TO'], msg.as_string())
     server.quit()
 
-monit_services = get_monit_services()
 
-health_checks = get_health_checks()
+def create_context():
+    '''collect data and return within context'''
+    monit_services = get_monit_services()
 
-domoticz_devices = get_domoticz_devices()
+    health_checks = get_health_checks()
 
-devices_inactive = get_devices_inactive(domoticz_devices)
-devices_low_battery = get_devices_low_battery(domoticz_devices)
-devices_no_roomplan = get_devices_no_roomplan(domoticz_devices)
-log_errors = get_log_errors()
+    domoticz_devices = get_domoticz_devices()
 
-zway_devices = get_zway_devices()
-zway_devices_failed = get_zway_devices_failed(zway_devices)
-zway_devices_low_battery = get_zway_devices_low_battery(zway_devices)
+    devices_inactive = get_devices_inactive(domoticz_devices)
+    devices_low_battery = get_devices_low_battery(domoticz_devices)
+    devices_no_roomplan = get_devices_no_roomplan(domoticz_devices)
+    log_errors = get_log_errors()
 
-context = {
-    'devices_inactive':
-        sorted(devices_inactive, key=lambda d: d['LastUpdate']),
-    'devices_low_battery':
-        devices_low_battery,
-    'devices_no_roomplan':
-        sorted(devices_no_roomplan, key=lambda d: d['idx']),
-    'log_errors':
-        sorted(log_errors, key=lambda e: e['count'], reverse=True),
-    'health_checks':
-        health_checks,
-    'monit_services':
-        monit_services,
-    'zway_devices_failed':
-        zway_devices_failed,
-    'zway_devices_low_battery':
-        zway_devices_low_battery
-}
+    zway_devices = get_zway_devices()
+    zway_devices_failed = get_zway_devices_failed(zway_devices)
+    zway_devices_low_battery = get_zway_devices_low_battery(zway_devices)
 
-file_loader = FileSystemLoader('templates')
-env = Environment(loader=file_loader, line_statement_prefix='#')
+    context = {
+        'devices_inactive':
+            sorted(devices_inactive, key=lambda d: d['LastUpdate']),
+        'devices_low_battery':
+            devices_low_battery,
+        'devices_no_roomplan':
+            sorted(devices_no_roomplan, key=lambda d: d['idx']),
+        'log_errors':
+            sorted(log_errors, key=lambda e: e['count'], reverse=True),
+        'health_checks':
+            health_checks,
+        'monit_services':
+            monit_services,
+        'zway_devices_failed':
+            zway_devices_failed,
+        'zway_devices_low_battery':
+            zway_devices_low_battery
+    }
 
-template = env.get_template('mail.html.j2')
-report = template.render(context)
+    return context
 
-with open('rendered.html', 'w') as file:
-    file.write(report)
 
-if config.getboolean('MAIL', 'SEND_MAIL') == True:
-    send_mail(report)
+def render_report(context):
+    '''merge context into template and return report'''
+    file_loader = FileSystemLoader('templates')
+    env = Environment(loader=file_loader, line_statement_prefix='#')
+
+    template = env.get_template('mail.html.j2')
+    report = template.render(context)
+
+    with open('rendered.html', 'w', encoding='utf-8') as file:
+        file.write(report)
+
+    return report
+
+
+def main():
+    '''collect and report'''
+
+    context = create_context()
+
+    report = render_report(context)
+
+    if config.getboolean('MAIL', 'SEND_MAIL'):
+        send_mail(report)
+
+
+if __name__ == "__main__":
+    main()

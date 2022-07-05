@@ -80,7 +80,7 @@ def get_log_errors():
         if not ignore_log_message:
             errors[key] += 1
 
-    return [{'text': key, 'count': errors[key]} for key in errors.keys()]
+    return [{'text': text, 'count': count} for text, count in errors.items()]
 
 
 def get_devices_inactive(domoticz_devices):

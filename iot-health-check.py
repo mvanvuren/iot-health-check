@@ -56,6 +56,10 @@ def get_monit_services():
 def get_log_errors():
     log_messages_ignored = jstyleson.loads(config['DOMOTICZ']['LOG_MESSAGES_IGNORED'])
     response = requests.get(config['DOMOTICZ']['API_LOG_ERRORS'])
+
+    if not 'result' in response.json():
+        return []
+
     items = response.json()['result']
 
     errors = defaultdict(int)

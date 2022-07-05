@@ -1,9 +1,4 @@
-certifi==2021.10.8
-charset-normalizer==2.0.9
-idna==3.3
 Jinja2==3.0.3
 jstyleson==0.0.2
-lxml==4.6.4
-MarkupSafe==2.0.1
-requests==2.26.0
-urllib3==1.26.7
+lxml==4.6.3
+requests==2.25.1

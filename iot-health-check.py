@@ -47,7 +47,7 @@ def get_health_checks():
 
 def get_monit_services():
     '''returns list of monit processes with status != OK'''
-    response = requests.get(config['MONIT']['API_STATUS'])
+    response = requests.get(config['MONIT']['API_STATUS'], verify='/root/.local/share/mkcert/rootCA.pem')
     doc = etree.fromstring(response.content)
 
     services = [{'status': '??', 'name': service.find('name').text}

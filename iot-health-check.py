@@ -37,10 +37,14 @@ def get_domoticz_devices():
 
 def get_health_checks():
     '''returns list of health checks with status != up'''
-    response = requests.get(config['HEALTH_CHECKS']['API_ALL_CHECKS'],  headers={
-                            "X-Api-Key": config['HEALTH_CHECKS']['X-API-KEY']})
-    checks = [check for check in response.json()['checks']
-              if check['status'] != 'up']
+    checks = []
+    try:
+        response = requests.get(config['HEALTH_CHECKS']['API_ALL_CHECKS'],  headers={
+                                "X-Api-Key": config['HEALTH_CHECKS']['X-API-KEY']}, timeout=60)
+        checks = [check for check in response.json()['checks']
+                if check['status'] != 'up']
+    except:
+        pass
 
     return checks
 
